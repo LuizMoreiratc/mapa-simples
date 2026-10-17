@@ -72,6 +72,20 @@ function layout(blocks){
   return{all,groups:groups.map(g=>({label:g.label})),pages,ranges};
 }
 
+
+/* ---------- Parte teórica (antes da prática) ---------- */
+const PECAS=[['Introdução','intro','Abertura, geralmente instrumental. Apresenta o clima e o tom.'],['Estrofe','estrofe','Conta a história. Mesma melodia, letra nova a cada vez.'],['Pré-refrão','pre','Trecho curto que prepara a chegada do refrão. Nem toda música tem.'],['Refrão','refrao','O centro da canção. A mensagem principal, que volta igual.'],['Pós-refrão','pos','Extensão logo depois do refrão que reforça a mesma ideia.'],['Ponte','ponte','Ideia nova e contrastante, geralmente na segunda metade.'],['Tag','tag','Uma frase curta repetida várias vezes.'],['Vamp','vamp','Um ciclo de acordes que a banda sustenta e pode prolongar.']];
+const PISTAS=[['Melodia','Mudou a ideia cantada?'],['Harmonia','Mudou o caminho dos acordes?'],['Ritmo','Mudou a divisão, o groove ou a frase?'],['Função','Desenvolve, prepara, contrasta ou conclui?']];
+const PASSOS=[['Ouvir','A música toca com a letra corrida na tela.'],['Perceber','Levante a mão quando a música mudar de seção.'],['Nomear','Voltamos o trecho e damos nome a ele.'],['Pintar','O trecho recebe a cor da sua família.']];
+const THEORY=[
+ ()=>`<div class="th-panel"><div class="th-panel-words">Ouvir<br>Identificar<br>Mapear</div><div class="th-panel-foot">Simples Music</div></div>
+  <div class="th-cover"><div class="s-eye">Mentoria · Prática de conjunto</div><div class="th-h1">Enxergar a música</div><p class="th-lead">Como ouvir, nomear e mapear a estrutura de uma canção</p><p class="th-small">Música de estudo: Jireh (Get Worship, versão em português)</p></div>`+foot('Parte 1 · Teoria'),
+ ()=>`<div class="s-eye">Parte 1 · Teoria</div><div class="s-title">As peças de uma canção</div><div class="th-grid">`+PECAS.map(([n,f,d])=>`<div class="th-card" style="background:var(--f-${f})"><div class="th-card-t">${n}</div><p>${d}</p></div>`).join('')+`</div>`+foot('Cada família tem uma cor'),
+ ()=>`<div class="s-eye">Parte 1 · Teoria</div><div class="s-title">Quatro pistas para perceber a mudança</div><div class="th-cols">`+PISTAS.map(([n,q],i)=>`<div class="th-col"><div class="th-num">0${i+1}</div><div class="th-col-t">${n}</div><p>${q}</p></div>`).join('')+`</div><p class="th-rule"><b>A letra orienta, mas não decide sozinha.</b> Compare a identidade musical e a função do trecho.</p>`+foot('Parte 1 · Teoria'),
+ ()=>`<div class="s-eye">Parte 2 · Prática</div><div class="s-title">Vamos mapear Jireh juntos</div><div class="th-cols">`+PASSOS.map(([n,q],i)=>`<div class="th-col${i===3?' hl':''}"><div class="th-num sm">0${i+1}</div><div class="th-col-t">${n}</div><p>${q}</p></div>`).join('')+`</div><p class="th-rule"><b>No final:</b> a música inteira setorizada, de ponta a ponta.</p>`+foot('Parte 2 · Prática')
+];
+const T=THEORY.length;
+
 /* ---------- Desenho de um slide ---------- */
 function blockEl(b,on){
   const d=document.createElement('div');d.className='blk'+(on?' on':'');if(on)d.style.background=col(b.label);
@@ -83,11 +97,12 @@ function blockEl(b,on){
 const foot=lab=>`<div class="s-foot"><span class="mark">simples<span class="dot">.</span> <span class="mus">music</span></span><span class="lab">${lab}</span></div>`;
 function drawSlide(stage,L,view,flash){
   stage.innerHTML='';const sl=document.createElement('div');sl.className='slide';
-  const nL=L.pages.length;
-  if(view.slide<nL){
-    sl.innerHTML=`<div class="s-eye">Ouvindo e mapeando · ${view.slide+1}/${nL}</div><div class="s-title">${TITLES[Math.min(view.slide,TITLES.length-1)]}</div>`+foot('Jireh · Get Worship');
+  const nL=L.pages.length;const li=view.slide-T;
+  if(view.slide<T){sl.innerHTML=THEORY[view.slide]();if(view.slide===0)sl.classList.add('th-first')}
+  else if(li<nL){
+    sl.innerHTML=`<div class="s-eye">Parte 2 · Prática · letra ${li+1}/${nL}</div><div class="s-title">${TITLES[Math.min(li,TITLES.length-1)]}</div>`+foot('Jireh · Get Worship');
     const cols=document.createElement('div');cols.className='cols';
-    L.pages[view.slide].forEach(c=>{const cd=document.createElement('div');cd.className='col';c.forEach(i=>{const b=L.all[i];const el=blockEl(b,b.g<view.painted);if(flash&&b.g===view.painted-1)el.classList.add('flash');cd.appendChild(el)});cols.appendChild(cd)});
+    L.pages[li].forEach(c=>{const cd=document.createElement('div');cd.className='col';c.forEach(i=>{const b=L.all[i];const el=blockEl(b,b.g<view.painted);if(flash&&b.g===view.painted-1)el.classList.add('flash');cd.appendChild(el)});cols.appendChild(cd)});
     sl.appendChild(cols);
   }else{
     sl.innerHTML=`<div class="s-eye">Mapa completo</div><div class="s-title">Jireh, parte por parte</div>`+foot('Mapa completo');
@@ -160,12 +175,12 @@ function initControle(){
     if(!L)return;seq=Math.max(seq+1,Date.now());store.set('sm.seq',seq);store.set('sm.view',JSON.stringify(view));
     bus.publish({seq,L,view});drawSlide(mstage,L,view,flash);fitMini();updateCtl();
   }
-  function pageOf(g){for(let i=0;i<L.ranges.length;i++){const r=L.ranges[i];if(g>=r.first&&g<=r.last)return i}return 0}
+  function pageOf(g){for(let i=0;i<L.ranges.length;i++){const r=L.ranges[i];if(g>=r.first&&g<=r.last)return T+i}return T}
   function updateCtl(){
-    const total=L.groups.length,nP=L.pages.length+1;
+    const total=L.groups.length,nP=T+L.pages.length+1,last=T+L.pages.length;
     $('nextlab').textContent=view.painted<total?'Próximo a pintar: '+L.groups[view.painted].label:'Tudo pintado';
-    $('ctlcount').textContent=`Tela ${view.slide+1}/${nP}${view.slide===L.pages.length?' (mapa final)':''} · ${view.painted}/${total} trechos pintados`;
-    $('bPgPrev').disabled=view.slide===0;$('bPgNext').disabled=view.slide>=L.pages.length;
+    $('ctlcount').textContent=`Tela ${view.slide+1}/${nP}${view.slide===last?' (mapa final)':view.slide<T?' (teoria)':''} · ${view.painted}/${total} trechos pintados`;
+    $('bPgPrev').disabled=view.slide===0;$('bPgNext').disabled=view.slide>=last;
     $('bNext').disabled=view.painted>=total;$('bPrev').disabled=view.painted===0;
   }
   // Pintar: pinta o próximo trecho e mostra a tela onde ele está
@@ -173,7 +188,7 @@ function initControle(){
   // Desfazer: tira a cor do último trecho pintado
   function prev(){if(!view.painted)return;view.painted--;view.slide=pageOf(view.painted);send()}
   // Virar página sem pintar
-  function pg(d){view.slide=Math.min(L.pages.length,Math.max(0,view.slide+d));send()}
+  function pg(d){view.slide=Math.min(T+L.pages.length,Math.max(0,view.slide+d));send()}
   // preparo
   function stanzaLabels(){const a=[];parsed.blocks.forEach(b=>b.idx.forEach(()=>a.push(b.label)));return a}
   function renderBlocks(){
@@ -200,7 +215,7 @@ function initControle(){
   function ready(){
     if(!parsed||parsed.blocks.some(b=>!b.label)){$('ctl').hidden=true;return}
     const nl=layout(parsed.blocks);const changed=!L||JSON.stringify(nl)!==JSON.stringify(L);L=nl;
-    if(changed){const sv=JSON.parse(store.get('sm.view')||'null');view=sv&&sv.slide<=L.pages.length?sv:{slide:0,painted:0}}
+    if(changed){const sv=JSON.parse(store.get('sm.view')||'null');view=sv&&sv.slide<=T+L.pages.length?sv:{slide:0,painted:0}}
     $('ctl').hidden=false;send();
   }
   function doParse(useSaved){
@@ -212,8 +227,8 @@ function initControle(){
   $('btnParse').addEventListener('click',()=>doParse(false));
   $('bNext').addEventListener('click',next);$('bPrev').addEventListener('click',prev);$('bPgPrev').addEventListener('click',()=>pg(-1));$('bPgNext').addEventListener('click',()=>pg(1));
   $('bAll').addEventListener('click',()=>{view.painted=L.groups.length;send()});
-  $('bReset').addEventListener('click',()=>{view={slide:0,painted:0};send()});
-  $('bSum').addEventListener('click',()=>{view.slide=L.pages.length;send()});
+  $('bReset').addEventListener('click',()=>{view={slide:T,painted:0};send()});
+  $('bSum').addEventListener('click',()=>{view.slide=T+L.pages.length;send()});
   $('bCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(telaURL);$('bCopy').textContent='Copiado'}catch(e){const r=document.createRange();r.selectNodeContents($('telaLink'));const s=getSelection();s.removeAllRanges();s.addRange(r)}setTimeout(()=>$('bCopy').textContent='Copiar link',1800)});
   if(navigator.share){$('bShare').hidden=false;$('bShare').addEventListener('click',()=>navigator.share({title:'Mapa de Jireh · tela',text:'Abra este link no computador da projeção, em tela cheia:',url:telaURL}).catch(()=>{}))}
   $('bNewRoom').addEventListener('click',()=>{store.del('sm.code');store.del('sm.view');location.hash='';location.reload()});
