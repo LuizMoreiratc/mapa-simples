@@ -1,0 +1,12 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700;800&family=Inter:wght@400;600;700&display=swap"><link rel="stylesheet" href="style.css"><title>Tela · Mapa de Jireh</title></head><body class="tela">
+<div class="wait" id="wait">
+  <div class="mark">simples<span class="dot">.</span> <span class="mus">music</span></div>
+  <p class="eyebrow">Mapa de Jireh · tela da projeção</p>
+  <div class="code" id="code"></div>
+  <p id="waitmsg"><span class="dot-live" id="live"></span><span id="livetxt">Conectando…</span></p>
+  <p>Deixe esta tela aberta. Ela muda sozinha quando o controle começar.</p>
+</div>
+<button class="fsbtn" id="fs">Tela cheia</button>
+<div id="show" hidden><div id="stage"></div></div>
+<script src="mqtt.min.js"></script><script src="app.js"></script><script>SM.initTela()</script>
+</body></html>
