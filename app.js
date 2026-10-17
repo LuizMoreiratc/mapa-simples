@@ -51,7 +51,7 @@ function parse(text,saved){
 }
 
 /* ---------- Montagem (determinística: o controle calcula e envia para a tela) ---------- */
-function estH(b){const lines=b.lines.reduce((s,l)=>s+Math.max(1,Math.ceil(l.length/36)),0);return 30+34+6+lines*31+2}
+function estH(b){const lines=b.lines.reduce((s,l)=>s+Math.max(1,Math.ceil(l.length/36)),0)+(b.x>1?1:0);return 24+lines*31+2}
 function layout(blocks){
   const all=[{label:'Introdução',lines:['(instrumental)'],x:1,inst:true}].concat(blocks.map(b=>({label:b.label,lines:b.lines,x:b.times*b.rep}))).concat([{label:'Final',lines:['(saída da música)'],x:1,inst:true}]);
   const groups=[];all.forEach((b,i)=>{const g=groups[groups.length-1];if(g&&g.label===b.label&&!b.inst&&!g.inst)g.b.push(i);else groups.push({label:b.label,b:[i],inst:!!b.inst})});
@@ -73,11 +73,9 @@ function layout(blocks){
 /* ---------- Desenho de um slide ---------- */
 function blockEl(b,on){
   const d=document.createElement('div');d.className='blk'+(on?' on':'');if(on)d.style.background=col(b.label);
-  const h=document.createElement('div');h.className='bh';
-  const n=document.createElement('span');n.className='bn';n.textContent=on?b.label:'?';
-  const x=document.createElement('span');x.className='bx';x.textContent=b.x>1?'×'+b.x:'';
-  h.append(n,x);d.appendChild(h);
+  const t=document.createElement('span');t.className='tagp';t.textContent=b.label;d.appendChild(t);
   b.lines.forEach(l=>{const p=document.createElement('p');p.className='ln'+(b.inst?' inst':'');p.textContent=l;d.appendChild(p)});
+  if(b.x>1){const p=document.createElement('p');p.className='ln rep';p.textContent='('+b.x+'x)';d.appendChild(p)}
   return d;
 }
 const foot=lab=>`<div class="s-foot"><span class="mark">simples<span class="dot">.</span> <span class="mus">music</span></span><span class="lab">${lab}</span></div>`;

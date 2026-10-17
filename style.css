@@ -95,3 +95,10 @@ body.tela.idle .fsbtn{opacity:0;transition:opacity .4s}
 .mini .mstage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;background:var(--navy);font-family:var(--body);color:var(--cream)}
 .linkbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .linkbox code{background:var(--navy);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;word-break:break-all;flex:1;min-width:0;user-select:all}
+
+/* Letra corrida: sem caixa até ser pintada */
+.blk{position:relative;background:transparent;border:1px solid transparent;padding:12px 20px}
+.blk .tagp{position:absolute;right:14px;top:10px;font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:2px;text-transform:uppercase;color:var(--cream);background:rgba(14,31,43,.35);padding:4px 12px;border-radius:999px;opacity:0;transition:opacity .45s ease}
+.blk.on .tagp{opacity:1}
+.blk .ln.rep{color:var(--blue-l);font-family:var(--display);font-weight:700}
+.blk.on .ln.rep{color:var(--cream)}
