@@ -115,6 +115,12 @@ function drawSlide(stage,L,view,flash){
   stage.appendChild(sl);
 }
 
+
+/* ---------- Música (YouTube) ---------- */
+function ytId(u){if(!u)return'';const m=String(u).match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/);if(m)return m[1];return /^[A-Za-z0-9_-]{11}$/.test(u.trim())?u.trim():''}
+let ytReady=null;
+function loadYT(){if(ytReady)return ytReady;ytReady=new Promise(res=>{window.onYouTubeIframeAPIReady=()=>res(window.YT);const t=document.createElement('script');t.src='https://www.youtube.com/iframe_api';document.head.appendChild(t)});return ytReady}
+
 /* ---------- Tempo real ---------- */
 function topicFor(code){return 'simplesmusic/mapa-jireh/v1/'+code}
 function connect(code,onState,onStatus){
@@ -149,8 +155,33 @@ function initTela(){
     const key=JSON.stringify(st.L);
     if(key!==lastKey){L=st.L;lastKey=key}
     const flash=cur&&st.view.painted===cur.view.painted+1;
-    cur=st;wait.hidden=true;show.hidden=false;fit();drawSlide(stage,L,st.view,flash);
+    const first=!cur;cur=st;wait.hidden=true;show.hidden=false;fit();drawSlide(stage,L,st.view,flash);
+    if(st.media)media(st.media,first);
   },live=>{$('live').classList.toggle('ok',live);$('livetxt').textContent=live?'Conectado. Aguardando o controle…':'Conectando…'});
+  // ---- música
+  let player=null,curId='',lastN=-1;
+  const wrap=$('ytwrap'),unlock=$('unlock');
+  function media(m,first){
+    wrap.className=m.size==='full'?'full':'';wrap.hidden=!m.id;
+    const go=()=>{
+      if(first){lastN=m.n;return}
+      if(m.n===lastN)return;lastN=m.n;
+      const t=player.getCurrentTime?player.getCurrentTime():0;
+      if(m.cmd==='play'){player.playVideo();setTimeout(()=>{const s=player.getPlayerState&&player.getPlayerState();if(s!==1&&s!==3)unlock.hidden=false},1800)}
+      else if(m.cmd==='pause')player.pauseVideo();
+      else if(m.cmd==='back')player.seekTo(Math.max(0,t-10),true);
+      else if(m.cmd==='fwd')player.seekTo(t+10,true);
+      else if(m.cmd==='restart'){player.seekTo(0,true);player.pauseVideo()}
+    };
+    if(!m.id)return;
+    if(m.id!==curId){curId=m.id;
+      loadYT().then(YT=>{
+        if(player){player.cueVideoById(m.id);go();return}
+        player=new YT.Player('yt',{videoId:m.id,playerVars:{playsinline:1,rel:0,modestbranding:1},events:{onReady:go}});
+      });
+    }else if(player&&player.playVideo)go();
+  }
+  unlock.addEventListener('click',()=>{unlock.hidden=true;try{player.playVideo()}catch(e){}});
   $('fs').addEventListener('click',()=>{try{const p=document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(()=>{})}catch(e){}});
   let t;const wake=()=>{document.body.classList.remove('idle');clearTimeout(t);t=setTimeout(()=>document.body.classList.add('idle'),2500)};
   document.addEventListener('mousemove',wake);wake();
@@ -167,13 +198,15 @@ function initControle(){
   $('telaLink').textContent=telaURL;$('roomCode').textContent=code;
 
   let parsed=null,L=null,view={slide:0,painted:0},seq=Number(store.get('sm.seq')||0);
+  let mediaSt={id:ytId(store.get('sm.yt')||'https://www.youtube.com/watch?v=cjHFWrf3fCk'),cmd:'',n:0,size:'corner'};
+  try{const ms=JSON.parse(store.get('sm.media')||'null');if(ms)mediaSt=ms}catch(e){}
   const bus=connect(code,()=>{},live=>{$('live').classList.toggle('ok',live);$('livetxt').textContent=live?'Conectado ao telão':'Conectando…'});
   const mstage=$('mstage'),mini=$('mini');
   const fitMini=()=>{const k=mini.clientWidth/1920;mstage.style.transform=`scale(${k})`};
   window.addEventListener('resize',fitMini);
   function send(flash){
     if(!L)return;seq=Math.max(seq+1,Date.now());store.set('sm.seq',seq);store.set('sm.view',JSON.stringify(view));
-    bus.publish({seq,L,view});drawSlide(mstage,L,view,flash);fitMini();updateCtl();
+    store.set('sm.media',JSON.stringify(mediaSt));bus.publish({seq,L,view,media:mediaSt});drawSlide(mstage,L,view,flash);fitMini();updateCtl();
   }
   function pageOf(g){for(let i=0;i<L.ranges.length;i++){const r=L.ranges[i];if(g>=r.first&&g<=r.last)return T+i}return T}
   function updateCtl(){
@@ -232,10 +265,17 @@ function initControle(){
   $('bCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(telaURL);$('bCopy').textContent='Copiado'}catch(e){const r=document.createRange();r.selectNodeContents($('telaLink'));const s=getSelection();s.removeAllRanges();s.addRange(r)}setTimeout(()=>$('bCopy').textContent='Copiar link',1800)});
   if(navigator.share){$('bShare').hidden=false;$('bShare').addEventListener('click',()=>navigator.share({title:'Mapa de Jireh · tela',text:'Abra este link no computador da projeção, em tela cheia:',url:telaURL}).catch(()=>{}))}
   $('bNewRoom').addEventListener('click',()=>{store.del('sm.code');store.del('sm.view');location.hash='';location.reload()});
+  // ---- música
+  $('ytUrl').value=store.get('sm.yt')||'https://www.youtube.com/watch?v=cjHFWrf3fCk';
+  function mcmd(c){if(!L){$('ytMsg').textContent='Organize a letra primeiro.';return}mediaSt.cmd=c;mediaSt.n=(mediaSt.n||0)+1;send();$('ytMsg').textContent={play:'Tocando no telão',pause:'Pausado',back:'Voltou 10 s',fwd:'Avançou 10 s',restart:'Voltou ao início (pausado)'}[c]||''}
+  $('ytSet').addEventListener('click',()=>{const id=ytId($('ytUrl').value);if(!id){$('ytMsg').textContent='Não reconheci esse link do YouTube.';return}store.set('sm.yt',$('ytUrl').value);mediaSt.id=id;mediaSt.cmd='';mediaSt.n=(mediaSt.n||0)+1;send();$('ytMsg').textContent='Vídeo carregado no telão.'});
+  [['ytPlay','play'],['ytPause','pause'],['ytBack','back'],['ytFwd','fwd'],['ytRestart','restart']].forEach(([id,c])=>$(id).addEventListener('click',()=>mcmd(c)));
+  $('ytSize').addEventListener('click',()=>{mediaSt.size=mediaSt.size==='full'?'corner':'full';$('ytSize').textContent=mediaSt.size==='full'?'Vídeo no canto':'Vídeo em tela cheia';send()});
+  $('ytSize').textContent=mediaSt.size==='full'?'Vídeo no canto':'Vídeo em tela cheia';
   const saved=store.get('sm.text');if(saved){$('lyrics').value=saved;doParse(true)}
   // reenviar o estado de tempos em tempos para quem entrar depois
-  setInterval(()=>{if(L&&document.visibilityState==='visible')bus.publish({seq,L,view})},15000);
+  setInterval(()=>{if(L&&document.visibilityState==='visible')bus.publish({seq,L,view,media:mediaSt})},15000);
 }
 
-window.SM={initTela,initControle,parse,layout};
+window.SM={initTela,initControle,parse,layout,ytId};
 })();
