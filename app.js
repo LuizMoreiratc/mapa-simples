@@ -56,15 +56,17 @@ function layout(blocks){
   const all=[{label:'Introdução',lines:['(instrumental)'],x:1,inst:true}].concat(blocks.map(b=>({label:b.label,lines:b.lines,x:b.times*b.rep}))).concat([{label:'Final',lines:['(saída da música)'],x:1,inst:true}]);
   const groups=[];all.forEach((b,i)=>{const g=groups[groups.length-1];if(g&&g.label===b.label&&!b.inst&&!g.inst)g.b.push(i);else groups.push({label:b.label,b:[i],inst:!!b.inst})});
   groups.forEach((g,gi)=>g.b.forEach(i=>all[i].g=gi));
-  const H=680,GAP=14,pages=[];let page=[[]],ci=0,used=0;
-  const firstPonte=all.findIndex(b=>/^Ponte/.test(b.label));
-  all.forEach((b,i)=>{
-    const h=estH(b);
-    if(i===firstPonte&&i>0&&page.some(c=>c.length)){pages.push(page);page=[[]];ci=0;used=0}
-    if(used+(used?GAP:0)+h>H&&page[ci].length){ci++;used=0;if(ci>2){pages.push(page);page=[[]];ci=0}else page.push([])}
-    page[ci].push(i);used+=(used?GAP:0)+h;
-  });
-  if(page.some(c=>c.length))pages.push(page);
+  const H=680,GAP=12;const hs=all.map(estH);
+  function pack(limit){const pages=[];let page=[[]],ci=0,used=0;
+    all.forEach((b,i)=>{const h=hs[i];
+      if(used+(used?GAP:0)+h>limit&&page[ci].length){ci++;used=0;if(ci>2){pages.push(page);page=[[]];ci=0}else page.push([])}
+      page[ci].push(i);used+=(used?GAP:0)+h});
+    if(page.some(c=>c.length))pages.push(page);return pages}
+  let pages=pack(H);
+  // equilibra: mesma quantidade de telas, mas com as colunas mais parecidas entre si
+  const total=hs.reduce((x,y)=>x+y+GAP,0);
+  for(let lim=Math.max(Math.ceil(total/(pages.length*3)),Math.max(...hs));lim<H;lim+=10){const t=pack(lim);if(t.length===pages.length){pages=t;break}}
+
   const owner={};pages.forEach((p,pi)=>p.flat().forEach(i=>{const g=all[i].g;if(owner[g]===undefined)owner[g]=pi}));
   const ranges=pages.map((p,pi)=>{const own=Object.keys(owner).map(Number).filter(g=>owner[g]===pi);return{first:Math.min(...own),last:Math.max(...own)}});
   return{all,groups:groups.map(g=>({label:g.label})),pages,ranges};
@@ -158,26 +160,20 @@ function initControle(){
     if(!L)return;seq=Math.max(seq+1,Date.now());store.set('sm.seq',seq);store.set('sm.view',JSON.stringify(view));
     bus.publish({seq,L,view});drawSlide(mstage,L,view,flash);fitMini();updateCtl();
   }
+  function pageOf(g){for(let i=0;i<L.ranges.length;i++){const r=L.ranges[i];if(g>=r.first&&g<=r.last)return i}return 0}
   function updateCtl(){
-    const total=L.groups.length;const nL=L.pages.length;
-    const r=L.ranges[view.slide];
-    let nxt='';
-    if(view.slide>=nL)nxt='Fim: mapa completo na tela';
-    else if(view.painted<=r.last)nxt='Próximo: '+L.groups[Math.max(view.painted,r.first)].label;
-    else nxt=view.slide+1<nL?'Próximo: avançar para a tela '+(view.slide+2):'Próximo: mapa completo';
-    $('nextlab').textContent=nxt;
-    $('ctlcount').textContent=`${Math.min(view.painted,total)}/${total} trechos · tela ${Math.min(view.slide+1,nL+1)}/${nL+1}`;
+    const total=L.groups.length,nP=L.pages.length+1;
+    $('nextlab').textContent=view.painted<total?'Próximo a pintar: '+L.groups[view.painted].label:'Tudo pintado';
+    $('ctlcount').textContent=`Tela ${view.slide+1}/${nP}${view.slide===L.pages.length?' (mapa final)':''} · ${view.painted}/${total} trechos pintados`;
+    $('bPgPrev').disabled=view.slide===0;$('bPgNext').disabled=view.slide>=L.pages.length;
+    $('bNext').disabled=view.painted>=total;$('bPrev').disabled=view.painted===0;
   }
-  function next(){
-    const nL=L.pages.length;const r=L.ranges[view.slide];
-    if(view.slide<nL&&view.painted<=r.last){view.painted=Math.max(view.painted,r.first)+1;send(true);return}
-    if(view.slide<nL){view.slide++;send()}
-  }
-  function prev(){
-    const nL=L.pages.length;
-    if(view.slide<nL){const r=L.ranges[view.slide];if(view.painted>r.first){view.painted--;send();return}}
-    if(view.slide>0){view.slide--;send()}
-  }
+  // Pintar: pinta o próximo trecho e mostra a tela onde ele está
+  function next(){if(view.painted>=L.groups.length)return;view.slide=pageOf(view.painted);view.painted++;send(true)}
+  // Desfazer: tira a cor do último trecho pintado
+  function prev(){if(!view.painted)return;view.painted--;view.slide=pageOf(view.painted);send()}
+  // Virar página sem pintar
+  function pg(d){view.slide=Math.min(L.pages.length,Math.max(0,view.slide+d));send()}
   // preparo
   function stanzaLabels(){const a=[];parsed.blocks.forEach(b=>b.idx.forEach(()=>a.push(b.label)));return a}
   function renderBlocks(){
@@ -214,7 +210,7 @@ function initControle(){
     parsed=parse(text,saved);renderBlocks();status();ready();
   }
   $('btnParse').addEventListener('click',()=>doParse(false));
-  $('bNext').addEventListener('click',next);$('bPrev').addEventListener('click',prev);
+  $('bNext').addEventListener('click',next);$('bPrev').addEventListener('click',prev);$('bPgPrev').addEventListener('click',()=>pg(-1));$('bPgNext').addEventListener('click',()=>pg(1));
   $('bAll').addEventListener('click',()=>{view.painted=L.groups.length;send()});
   $('bReset').addEventListener('click',()=>{view={slide:0,painted:0};send()});
   $('bSum').addEventListener('click',()=>{view.slide=L.pages.length;send()});
